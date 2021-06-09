@@ -1,4 +1,5 @@
 import random
+from ffa import update,select,relaseConnect
 # 银行的库
 names = {}
 '''
@@ -35,25 +36,36 @@ def getRandom():
 
 # 银行的开户逻辑
 def bank_addUser(account,username,password,money,country,province,street,door):
+
     # 1.判断是否已满
-    if len(names)  >= 100:
+    sql = "select * from gx"
+    p = []
+    gs=select(sql, p)
+    if len(gs)  >= 100:
         return 3
     # 2.判断是否存在:依据是用户名
-    if username in names:
+    sql = "select 用户名 from gx where 用户名=%s"
+    p = [username]
+    s=select(sql, p)
+    if len(s)==1:
         return 2
-    # 3.开户
-    names[username] = {
-        "account":account,
-        "username":username,
-        "password":password,
-        "money":money,
-        "country":country,
-        "province":province,
-        "street":street,
-        "door":door,
-        "bank_name":bank_name
-    }
+# 3.开户
+    sql = "insert into gx values(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    param = [username, password, account, money, country, province, street, door, bank_name]
+    update(sql, param)
+    # names[username] = {
+    #     "account":account,
+    #     "username":username,
+    #     "password":password,
+    #     "money":money,
+    #     "country":country,
+    #     "province":province,
+    #     "street":street,
+    #     "door":door,
+    #     "bank_name":bank_name
+    # # }
     return 1
+
 
 
 # 开户操作
@@ -68,6 +80,7 @@ def addUser():
     door = input("请输入您的门牌号：")
     account = getRandom()
     status = bank_addUser(account,username,password,money,country,province,street,door)
+
     if status == 1:
         print("恭喜开户成功！以下是您的个人信息：")
         info = '''
@@ -93,11 +106,23 @@ def addUser():
 
 # 存钱逻辑判断
 def cqlj(password,money,username,account):
-    if account not in names[username]['account']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    if len(s) != 1:
         return 2
-    if password not in names[username]['password']:
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(a) != 1:
         return 3
-    if account in names[username]['account'] and password in names[username]['password']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(s) == 1 and len(a) == 1:
         return 1
 
 
@@ -109,8 +134,15 @@ def cunqian():
     money = int(input("请输入您的存款额："))
     status = cqlj(password,money,username,account)
     if status == 1:
-        money = money + names[username]['money']
-        print("恭喜存钱成功！",money)
+        sql = "select 余额 from gx where 账号=%s"
+        p = [account]
+        a = select(sql, p)
+        at=int(a[0][0])+money
+        sql1 = "update gx set 余额 = %s where 账号 = %s"
+        ps=[at,account]
+        update(sql1, ps)
+        # money = money + names[username]['money']
+        print("恭喜存钱成功！",at)
     elif status == 2:
         print("对不起，您的账户不存在！")
     elif status == 3:
@@ -118,14 +150,31 @@ def cunqian():
 
 #取钱逻辑
 def qqlj(password,money,username,account):
-    if money <= names[username]['money']:
-                return 1
-    if account not in names[username]['account']:
-        return 2
-    if password not in names[username]['password']:
-        return 3
-    if money > names[username]['money']:
+    sql="select 余额 from gx where 账号=%s"
+    p=[account]
+    a=select(sql,p)
+    if int(a[0][0])>= money:
+        return 1
+    if int(a[0][0]) < money:
         return 4
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    if len(s) != 1:
+        return 2
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(a) != 1:
+        return 3
+    # if money <= names[username]['money']:
+    #             return 1
+    # if account not in names[username]['account']:
+    #     return 2
+    # if password not in names[username]['password']:
+    #     return 3
+    # if money > names[username]['money']:
+    #     return 4
 #取钱方法
 def quqian():
     username = input("请输入您的姓名：")
@@ -134,8 +183,15 @@ def quqian():
     money=int(input("请输入您要取的金额："))
     status=qqlj(password,money,username,account)
     if status==1:
-        money = names[username]['money'] - money
-        print("取钱成功！您的余额为：",money)
+        sql = "select 余额 from gx where 账号=%s"
+        p = [account]
+        a = select(sql, p)
+        h=int(a[0][0])-money
+        sql1 = "update gx set 余额 = %s where 账号 = %s"
+        ps = [h, account]
+        update(sql1, ps)
+        # money = names[username]['money'] - money
+        print("取钱成功！您的余额为：",h)
     if status==2:
         print("账户错误")
     if status==3:
@@ -144,20 +200,52 @@ def quqian():
         print("余额不足")
 #转账逻辑
 def zzlh(password,money,username,account,account1,username1):
-    if money <= names[username]['money']:
+    sql = "select 余额 from gx where 账号=%s"
+    p = [account]
+    a = select(sql, p)
+    if int(a[0][0]) >= money:
         return 1
-    if account not in names[username]['account']:
-        return 2
-    if password not in names[username]['password']:
-        return 3
-    if money > names[username]['money']:
+    if int(a[0][0]) < money:
         return 4
-    if account1 not in names[username]['account']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    if len(s) != 1:
+        return 2
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(a) != 1:
+        return 3
+    # if money <= names[username]['money']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account1]
+    z = select(sql, p)
+    if len(z) != 1:
         return 5
-    if username not in names:
+    sql = "select 密码 from gx where 密码=%s"
+    p = [username]
+    x = select(sql, p)
+    if len(x) != 1:
         return 6
-    if username1 not in names:
+    sql = "select 密码 from gx where 密码=%s"
+    p = [username1]
+    b = select(sql, p)
+    if len(b) != 1:
         return 7
+    #     return 1
+    # if account not in names[username]['account']:
+    #     return 2
+    # if password not in names[username]['password']:
+    #     return 3
+    # if money > names[username]['money']:
+    #     return 4
+    # if account1 not in names[username]['account']:
+    #     return 5
+    # if username not in names:
+    #     return 6
+    # if username1 not in names:
+    #     return 7
 
 
 
@@ -171,10 +259,25 @@ def zhuanz():
     money = int(input("请输入您要转的金额："))
     status=zzlh(password,money,username,account,account1,username1)
     if status==1:
-        names[username1]['money'] = names[username1]['money'] + money
-        money = names[username]['money'] - money
+        sql = "select 余额 from gx where 账号=%s"
+        p = [account]
+        a = select(sql, p)
+        sql = "select 余额 from gx where 账号=%s"
+        p = [account1]
+        b = select(sql, p)
+        h = int(a[0][0]) - money
+        m = int(b[0][0]) + money
+        sql1 = "update gx set 余额 = %s where 账号 = %s"
+        ps = [h, account]
+        update(sql1, ps)
+        sql2 = "update gx set 余额 = %s where 账号 = %s"
+        ps = [m, account1]
+        update(sql2, ps)
 
-        print("转账成功！您的余额为：",money)
+        # names[username1]['money'] = names[username1]['money'] + money
+        # money = names[username]['money'] - money
+
+        print("转账成功！您的余额为：",h)
     if status==2:
         print("账户错误")
     if status==3:
@@ -189,24 +292,45 @@ def zhuanz():
         print("对方姓名不正确")
 #查询逻辑
 def cxlj(username,account,password):
-    if account not in names[username]['account']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    if len(s) != 1:
         return 2
-    if password not in names[username]['password']:
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(a) != 1:
         return 3
-    if account in names[username]['account'] and password in names[username]['password']:
+    sql = "select 账号 from gx where 账号=%s"
+    p = [account]
+    s = select(sql, p)
+    sql = "select 密码 from gx where 密码=%s"
+    p = [password]
+    a = select(sql, p)
+    if len(s) == 1 and len(a) == 1:
         return 1
+    # if account not in names[username]['account']:
+    #     return 2
+    # if password not in names[username]['password']:
+    #     return 3
+    # if account in names[username]['account'] and password in names[username]['password']:
+    #     return 1
 
 #查询方法
 def chax():
     username = input("请输入您的姓名：")
     account = input("请输入您的账户：")
     password = input("请输入你的密码：")
+    sql = "select * from gx where 账号=%s"
+    p=[account]
+    a = select(sql, p)
     status=cxlj(username,account,password)
-    money=names[username]['money']
-    country=names[username]['country']
-    province=names[username]['province']
-    street=names[username]['street']
-    door=names[username]['door']
+    # money=names[username]['money']
+    # country=names[username]['country']
+    # province=names[username]['province']
+    # street=names[username]['street']
+    # door=names[username]['door']
     if status==1:
         print("恭喜开户成功！以下是您的个人信息：")
         info = '''
@@ -222,7 +346,7 @@ def chax():
                     开户行名称：%s
                     ------------------------------------
                 '''
-        print(info % (username, password, account, money, country, province, street, door, bank_name))
+        print(info % (a[0][0], a[0][1], a[0][2], a[0][3], a[0][4], a[0][5], a[0][6], a[0][7], a[0][8]))
     if status == 2:
         print("账户错误")
     if status == 3:
@@ -244,6 +368,7 @@ while True:
     elif chose == '5':
         chax()
     elif chose == '6':
+        relaseConnect()
         break
     else:
         print("输入非法！别瞎弄！")
